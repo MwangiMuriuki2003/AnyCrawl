@@ -3,6 +3,8 @@ import { log } from "@anycrawl/libs/log";
 import type { Dictionary } from '@crawlee/types';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
+import * as http from 'http';
+import * as https from 'https';
 
 import { cryptoRandomObjectId } from '@apify/utilities';
 
@@ -272,6 +274,23 @@ export class ProxyConfiguration extends CrawleeProxyConfiguration {
     protected _handleTieredUrl(_sessionId: string, options?: TieredProxyOptions): TieredProxy {
         if (!this.tieredProxyUrls) throw new Error('Tiered proxy URLs are not set');
 
+        // If the request URL matches a configured proxy rule, merge the matched proxy
+        // with the default ANYCRAWL_PROXY_URL list for rotation/fallback.
+        if (options?.request?.url) {
+            const matchedProxy = findProxyForUrl(options.request.url);
+            if (matchedProxy) {
+                const fallbackProxies = (this.tieredProxyUrls?.flat().filter((u): u is string => !!u) ?? []);
+                const combined = [matchedProxy, ...fallbackProxies];
+                const selectedProxy = combined[this.nextCustomUrlIndex++ % combined.length] ?? null;
+                if (selectedProxy) {
+                    this.log.info(`Using merged proxy list (rule + fallback): ${selectedProxy} for URL: ${options.request.url}`);
+                }
+                return {
+                    proxyUrl: selectedProxy,
+                };
+            }
+        }
+
         if (!options || (!options?.request && options?.proxyTier === undefined)) {
             const allProxyUrls = this.tieredProxyUrls.flat().filter((url): url is string | null => url !== undefined);
             const selectedProxy = allProxyUrls[this.nextCustomUrlIndex++ % allProxyUrls.length] ?? null;
@@ -410,19 +429,64 @@ interface ProxyConfig {
 
 // Parse proxy configuration from file specified by environment variable
 let proxyConfig: ProxyConfig | null = null;
-if (process.env.ANYCRAWL_PROXY_CONFIG) {
+
+function loadProxyConfigFromFile(pathOrFileUrl: string): void {
     try {
-        const configPath = resolve(process.env.ANYCRAWL_PROXY_CONFIG);
-        const configContent = readFileSync(configPath, 'utf-8');
-        proxyConfig = JSON.parse(configContent);
+        const pathToRead = resolve(pathOrFileUrl);
+        const configContent = readFileSync(pathToRead, 'utf-8');
+        const parsed: ProxyConfig = JSON.parse(configContent);
+        proxyConfig = parsed;
         if (proxyConfig?.rules) {
-            log.info(`Loaded proxy configuration from ${configPath} with ${proxyConfig.rules.length} rules`);
+            log.info(`Loaded proxy configuration from ${pathToRead} with ${proxyConfig.rules.length} rules`);
         }
     } catch (error) {
         log.error('Failed to load proxy configuration from file', {
-            configPath: process.env.ANYCRAWL_PROXY_CONFIG,
+            configPath: pathOrFileUrl,
             error
         });
+    }
+}
+
+function loadProxyConfigFromHttp(urlStr: string): void {
+    try {
+        const urlObj = new URL(urlStr);
+        const lib = urlObj.protocol === 'https:' ? https : http;
+        const req = lib.request(urlObj, (res) => {
+            if (res.statusCode && res.statusCode >= 400) {
+                log.error(`Failed to load proxy configuration from URL: HTTP ${res.statusCode}`, { url: urlStr });
+                res.resume();
+                return;
+            }
+            let data = '';
+            res.setEncoding('utf8');
+            res.on('data', (chunk) => { data += chunk; });
+            res.on('end', () => {
+                try {
+                    const parsed: ProxyConfig = JSON.parse(data);
+                    proxyConfig = parsed;
+                    if (proxyConfig?.rules) {
+                        log.info(`Loaded proxy configuration from ${urlStr} with ${proxyConfig.rules.length} rules`);
+                    }
+                } catch (e) {
+                    log.error('Failed to parse proxy configuration JSON from URL', { url: urlStr, error: e });
+                }
+            });
+        });
+        req.on('error', (e) => {
+            log.error('Failed to load proxy configuration from URL', { url: urlStr, error: e });
+        });
+        req.end();
+    } catch (error) {
+        log.error('Invalid ANYCRAWL_PROXY_CONFIG URL', { url: urlStr, error });
+    }
+}
+
+if (process.env.ANYCRAWL_PROXY_CONFIG) {
+    const cfg = process.env.ANYCRAWL_PROXY_CONFIG.trim();
+    if (cfg.startsWith('http://') || cfg.startsWith('https://')) {
+        loadProxyConfigFromHttp(cfg);
+    } else {
+        loadProxyConfigFromFile(cfg);
     }
 }
 
@@ -500,20 +564,13 @@ function findProxyForUrl(requestUrl: string): string | null {
 }
 
 const proxyConfiguration = new ProxyConfiguration({
-    newUrlFunction: (sessionId: string | number, options?: { request?: Request }) => {
+    newUrlFunction: (_sessionId: string | number, options?: { request?: Request }): string | null => {
         // First priority: explicit proxy from request userData
         if (options?.request?.userData?.options?.proxy) {
             log.info(`Using proxy from request userData: ${options?.request?.userData?.options?.proxy}`);
             return options?.request?.userData?.options?.proxy;
         }
-        // Second priority: proxy configuration based on URL matching (ANYCRAWL_PROXY_CONFIG)
-        if (options?.request?.url) {
-            const matchedProxy = findProxyForUrl(options.request.url);
-            if (matchedProxy) {
-                log.info(`Found proxy for URL ${options.request.url}: ${matchedProxy} By matching a rule.`);
-                return matchedProxy;
-            }
-        }
+
         // Third priority: fallback to ANYCRAWL_PROXY_URL (handled by tieredProxyUrls)
         return null;
     },

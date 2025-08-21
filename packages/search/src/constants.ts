@@ -1,0 +1,1 @@
+export const AVAILABLE_SEARCH_ENGINES = ["google"] as const;

@@ -6,12 +6,14 @@
     "pages": [
         "---Get Started---",
         "index",
-        "docker",
-        "proxy-rule",
-        "---Scrape---",
+        "---Scrape & Crawl---",
+        "crawl",
         "scrape",
         "json-mode",
         "---Search---",
-        "search"
+        "search",
+        "---Self Host---",
+        "docker",
+        "proxy-rule"
     ]
 }

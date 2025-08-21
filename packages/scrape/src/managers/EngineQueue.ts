@@ -1,11 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { log, RequestQueueV2 } from "crawlee";
 import { Utils } from "../Utils.js";
-import { EngineOptions } from "../engines/Base.js";
-import { Engine, EngineFactoryRegistry } from "../engines/EngineFactory.js";
-
-// Define available engine types
-export const ALLOWED_ENGINES = ["playwright", "cheerio", "puppeteer"] as const;
+import type { EngineOptions } from "../engines/Base.js";
+import { EngineFactoryRegistry } from "../engines/EngineFactory.js";
+import type { Engine } from "../engines/EngineFactory.js";
+import { ALLOWED_ENGINES } from "../constants.js";
 
 export const AVAILABLE_ENGINES = (() => {
     if (process.env.ANYCRAWL_AVAILABLE_ENGINES) {

@@ -17,16 +17,27 @@
             "types": "./dist/index.d.ts",
             "import": "./dist/index.js",
             "default": "./dist/index.js"
+        },
+        "./utils/config.js": {
+            "types": "./dist/utils/config.d.ts",
+            "import": "./dist/utils/config.js",
+            "default": "./dist/utils/config.js"
+        },
+        "./utils/helper.js": {
+            "types": "./dist/utils/helper.d.ts",
+            "import": "./dist/utils/helper.js",
+            "default": "./dist/utils/helper.js"
         }
     },
     "dependencies": {
-        "@ai-sdk/openai": "2.0.0-beta.2",
-        "@ai-sdk/openai-compatible": "1.0.0-beta.2",
+        "@ai-sdk/openai": "^2.0.11",
+        "@ai-sdk/openai-compatible": "^1.0.6",
+        "@openrouter/ai-sdk-provider": "^1.1.2",
         "@anycrawl/libs": "workspace:*",
-        "ai": "^5.0.0-beta",
+        "ai": "^5.0.0",
         "json-schema-to-zod": "^2.6.1",
         "tiktoken": "^1.0.21",
-        "zod": "^3.25.49"
+        "zod": "^3.25.76"
     },
     "devDependencies": {
         "@anycrawl/typescript-config": "workspace:*",

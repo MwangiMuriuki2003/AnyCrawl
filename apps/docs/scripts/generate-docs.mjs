@@ -8,7 +8,7 @@ void generateFiles({
     // For Vercel users, we recommend a URL instead.
     input: ['./openapi.json'],
     output: './content/docs/openapi/(generated)',
-    per: 'operation',
+    per: 'tag',
     // we recommend to enable it
     // make sure your endpoint description doesn't break MDX syntax.
     includeDescription: true,

@@ -1,6 +1,5 @@
 import { Response, NextFunction } from "express";
-import { getDB, schemas } from "../db/index.js";
-import { eq } from "drizzle-orm";
+import { getDB, schemas, eq } from "@anycrawl/db";
 import { RequestWithAuth } from "../types/Types.js";
 import { log } from "@anycrawl/libs/log";
 export const authMiddleware = async (

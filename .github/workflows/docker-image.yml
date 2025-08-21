@@ -8,8 +8,6 @@ on:
 jobs:
     build:
         runs-on: ubuntu-latest
-        env:
-            GITHUB_TAG: v0.0.1-alpha.7
         permissions:
             contents: read
             packages: write
@@ -38,4 +36,4 @@ jobs:
                   multiPlatform: true
                   platform: linux/amd64,linux/arm64
                   dockerfile: ./apps/api/Dockerfile
-                  tags: latest,${{ env.GITHUB_TAG }}
+                  tags: latest,${GITHUB_REF#refs/tags/}

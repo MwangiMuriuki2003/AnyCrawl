@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { SearchLocale } from "@anycrawl/search/engines/types";
-import { AVAILABLE_SEARCH_ENGINES } from "@anycrawl/search/SearchService";
+import { AVAILABLE_SEARCH_ENGINES } from "@anycrawl/search/constants";
 
 const searchSchema = z.object({
     engine: z.enum(AVAILABLE_SEARCH_ENGINES).optional(),

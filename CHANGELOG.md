@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.1-beta.1] - 2025-08-16
+
+### Added
+
+- Comprehensive job management system with job creation, status tracking, and results handling
+- LLM-powered JSON schema extraction capabilities with enhanced extraction prompts
+- ai-sdk framework with support for OpenRouter, OpenAI, and OpenAI-compatible providers
+- ProgressManager for real-time crawl job progress monitoring
+- Added crawl API endpoints with job management
+
+### Changed
+
+- Extracted database logic from API package into new `@anycrawl/db` package for better separation of concerns
+- Updated zod to version 3.25.76 across all packages for improved type safety
+- Refactored database access patterns to use the new dedicated database package
+- Refactored job completion and failure logic with improved error handling and status updates
+- Enhanced ALL-in-ONE Dockerfile and API Dockerfile for better deployment experience
+- Reorganized documentation structure with improved meta.json organization and proxy rule documentation
+- Enhanced proxy configuration loading with support for both file and HTTP URL sources
+
+### Fixed
+
+- Enhanced proxy selection logic for improved fallback handling
+
 ## [0.0.1-alpha.8] - 2025-07-04
 
 ### Added

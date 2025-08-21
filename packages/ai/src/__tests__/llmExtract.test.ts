@@ -1,7 +1,8 @@
 import { LLMExtract } from '../agents/LLMExtract.js';
 import { JSONSchema7 } from 'ai';
 import { log } from '@anycrawl/libs';
-import { loadAIConfig } from '../utils/config.js';
+import { ensureAIConfigLoaded, getAIConfig } from '../utils/config.js';
+import { getExtractModelId } from '../utils/helper.js';
 // 测试数据
 const testMarkdown = `
 # Company Information
@@ -196,13 +197,10 @@ describe('LLMExtract', () => {
 
     let defaultLLMModel: string;
 
-    beforeEach(() => {
-        const aiConfig = loadAIConfig();
-        if (aiConfig) {
-            defaultLLMModel = aiConfig.defaults.DEFAULT_EXTRACT_MODEL!;
-        } else {
-            defaultLLMModel = process.env.DEFAULT_EXTRACT_MODEL!;
-        }
+    beforeEach(async () => {
+        await ensureAIConfigLoaded();
+        const aiConfig = getAIConfig();
+        defaultLLMModel = getExtractModelId();
         extractor = new LLMExtract(defaultLLMModel);
     });
 

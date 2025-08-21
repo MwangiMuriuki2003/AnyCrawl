@@ -1,17 +1,22 @@
 import { modelsConfig } from './models-config.js';
-import { loadAIConfig } from './config.js';
+import { ensureAIConfigLoaded, getAIConfig } from './config.js';
+import { log } from '@anycrawl/libs';
 import { ConfigModelDetail } from './types.js';
 
-const aiConfig = loadAIConfig();
+let aiConfig: any = getAIConfig();
+
+// Allow external callers (e.g., scrape worker) to refresh config after ensureAIConfigLoaded()
+export const refreshAIConfig = (): void => {
+    aiConfig = getAIConfig();
+}
 
 /**
  * Check if the config is loaded from the config file
  * @returns The config is loaded from the config file
  */
 const whereLoadFrom = () => {
-    if (process.env.ANYCRAWL_AI_CONFIG_PATH) {
-        return 'config';
-    }
+    // If a config was loaded, treat as config mode
+    if (aiConfig) return 'config';
     return 'env';
 }
 
@@ -121,7 +126,12 @@ const getDefaultLLModelId = (): string => {
     if (whereLoadFrom() === 'config') {
         // check if defaults has config
         if (aiConfig.defaults?.DEFAULT_LLM_MODEL) {
-            const res = getEnabledModelIdByModelKey(aiConfig.defaults.DEFAULT_LLM_MODEL);
+            const configured = aiConfig.defaults.DEFAULT_LLM_MODEL;
+            // Support provider/modelId format directly
+            if (configured.includes('/')) {
+                return configured;
+            }
+            const res = getEnabledModelIdByModelKey(configured);
             if (res) {
                 return res;
             }
@@ -138,7 +148,12 @@ const getDefaultLLModelId = (): string => {
 const getExtractModelId = () => {
     if (whereLoadFrom() === 'config') {
         if (aiConfig.defaults?.DEFAULT_EXTRACT_MODEL) {
-            const res: string = getEnabledModelIdByModelKey(aiConfig.defaults.DEFAULT_EXTRACT_MODEL);
+            const configured = aiConfig.defaults.DEFAULT_EXTRACT_MODEL;
+            // Support provider/modelId format directly
+            if (configured.includes('/')) {
+                return configured; // e.g. "v3/gpt-5-mini"
+            }
+            const res: string = getEnabledModelIdByModelKey(configured);
             if (res) {
                 return res;
             }
@@ -147,6 +162,26 @@ const getExtractModelId = () => {
     } else {
         return getDefaultLLModelId();
     }
+    // Fallback for config mode without explicit DEFAULT_EXTRACT_MODEL
+    return getDefaultLLModelId();
 }
 
 export { aiConfig, modelsConfig, getEnabledModelIdByModelKey, getAvailableModels, getDefaultLLModelId, getEnabledProviderModels, getExtractModelId };
+
+// Optional logging helper: summarize AI config state using existing getters
+export function logAIStatus(): void {
+    try {
+        const pathEnv = process.env.ANYCRAWL_AI_CONFIG_PATH;
+        const isHttp = pathEnv ? /^https?:\/\//i.test(pathEnv) : false;
+        if (aiConfig) {
+            log.info(`[ai] config loaded from ${isHttp ? 'URL' : 'file'}: ${pathEnv}`);
+        } else {
+            log.info(`[ai] config not set (env mode)`);
+        }
+        const enabled = getEnabledProviderModels();
+        const providers = Array.from(new Set(enabled.map(e => e.provider)));
+        log.info(`[ai] providers ready: ${providers.length > 0 ? providers.join(', ') : 'none'}`);
+        const defaultModelId = getDefaultLLModelId();
+        if (defaultModelId) log.info(`[ai] default model: ${defaultModelId}`);
+    } catch { /* ignore logging errors */ }
+}

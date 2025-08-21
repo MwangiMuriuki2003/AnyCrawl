@@ -17,10 +17,13 @@ RUN chown myuser:myuser /usr/src/app
 COPY --chown=myuser:myuser package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
 COPY --chown=myuser:myuser packages/libs/package.json ./packages/libs/package.json
 COPY --chown=myuser:myuser packages/scrape/package.json ./packages/scrape/package.json
+COPY --chown=myuser:myuser packages/db/package.json ./packages/db/package.json
+COPY --chown=myuser:myuser packages/ai/package.json ./packages/ai/package.json
+COPY --chown=myuser:myuser packages/typescript-config/package.json ./packages/typescript-config/package.json
 USER myuser
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile --ignore-scripts
 COPY --chown=myuser:myuser . .
-RUN pnpm build --filter=@anycrawl/scrape --filter=@anycrawl/libs
+RUN pnpm build --filter=@anycrawl/scrape --filter=@anycrawl/libs --filter=@anycrawl/db --filter=@anycrawl/ai
 RUN rm -rf node_modules
 
 FROM base AS scrape-puppeteer
@@ -38,8 +41,12 @@ COPY --chown=myuser:myuser --from=build /usr/src/app/packages/typescript-config/
 # 2. copy which packages are needed to be built
 COPY --chown=myuser:myuser --from=build /usr/src/app/packages/scrape/dist /usr/src/app/packages/scrape/dist
 COPY --chown=myuser:myuser --from=build /usr/src/app/packages/libs/dist /usr/src/app/packages/libs/dist
+COPY --chown=myuser:myuser --from=build /usr/src/app/packages/db/dist /usr/src/app/packages/db/dist
+COPY --chown=myuser:myuser --from=build /usr/src/app/packages/ai/dist /usr/src/app/packages/ai/dist
 COPY --chown=myuser:myuser --from=build /usr/src/app/packages/scrape/package.json /usr/src/app/packages/scrape/package.json
 COPY --chown=myuser:myuser --from=build /usr/src/app/packages/libs/package.json /usr/src/app/packages/libs/package.json
+COPY --chown=myuser:myuser --from=build /usr/src/app/packages/db/package.json /usr/src/app/packages/db/package.json
+COPY --chown=myuser:myuser --from=build /usr/src/app/packages/ai/package.json /usr/src/app/packages/ai/package.json
 
 USER myuser
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --prod --frozen-lockfile --ignore-scripts

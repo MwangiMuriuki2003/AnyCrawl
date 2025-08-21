@@ -62,3 +62,65 @@ export const requestLog = p.sqliteTable("request_log", {
     // create at
     createdAt: p.integer("created_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date()),
 });
+
+export const jobs = p.sqliteTable("jobs", {
+    // Primary key with auto-incrementing ID
+    uuid: p
+        .text("uuid")
+        .primaryKey()
+        .$defaultFn(() => randomUUID()),
+    // job id
+    jobId: p.text("job_id").notNull(),
+    // job type
+    jobType: p.text("job_type").notNull(),
+    // job queue name
+    jobQueueName: p.text("job_queue_name").notNull(),
+    // job expire at
+    jobExpireAt: p.integer("job_expire_at", { mode: "timestamp" }).notNull().$defaultFn(() => new Date(Date.now() + 3 * 60 * 60 * 1000)),
+    // url
+    url: p.text("url").notNull(),
+    // payload from job
+    payload: p.text("payload", { mode: "json" }).$type<string[]>(),
+    // api key
+    apiKey: p.text("api_key_id").references(() => apiKey.uuid),
+    // total urls/pages found
+    total: p.integer("total").notNull().default(0),
+    // completed urls/pages
+    completed: p.integer("completed").notNull().default(0),
+    // failed urls/pages
+    failed: p.integer("failed").notNull().default(0),
+    // Number of credits consumed
+    creditsUsed: p.integer("credits_used").notNull().default(0),
+    // Origin, playground or api
+    origin: p.text("origin").notNull(),
+    // status of job
+    status: p.text("status").notNull(),
+    // job success or not
+    isSuccess: p.integer("is_success", { mode: "boolean" }).notNull().default(false),
+    // job error message
+    errorMessage: p.text("error_message"),
+    // job created at
+    createdAt: p.integer("created_at", { mode: "timestamp" }).notNull(),
+    // job updated at
+    updatedAt: p.integer("updated_at", { mode: "timestamp" }).notNull(),
+});
+
+export const jobResults = p.sqliteTable("job_results", {
+    // Primary key with auto-incrementing ID
+    uuid: p
+        .text("uuid")
+        .primaryKey()
+        .$defaultFn(() => randomUUID()),
+    // job uuid
+    jobUuid: p.text("job_uuid").notNull().references(() => jobs.uuid),
+    // url
+    url: p.text("url").notNull(),
+    // data
+    data: p.text("data", { mode: "json" }).$type<string[]>(),
+    // status
+    status: p.text("status").notNull(),
+    // created at
+    createdAt: p.integer("created_at", { mode: "timestamp" }).notNull(),
+    // updated at
+    updatedAt: p.integer("updated_at", { mode: "timestamp" }).notNull(),
+});

@@ -16,4 +16,5 @@ export interface RequestWithAuth extends Request {
     };
     creditsUsed?: number;
     checkCredits?: boolean;
+    jobId?: string;
 }

@@ -2,11 +2,18 @@ import { createProviderRegistry, LanguageModel } from "ai";
 import { createOpenAI, openai } from "@ai-sdk/openai";
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import { aiConfig, getDefaultLLModelId, getEnabledModelIdByModelKey } from "./utils/helper.js";
+import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 
 type ProviderRegistry = ReturnType<typeof createProviderRegistry>;
 
 const separator = '/';
 let providerRegistry: ProviderRegistry;
+
+// Extra headers for providers that support custom headers (e.g., OpenRouter)
+const extraHeaders: Record<string, string> = {
+    'HTTP-Referer': 'https://anycrawl.dev',
+    'X-Title': 'AnyCrawl',
+};
 
 
 if (aiConfig) {
@@ -35,10 +42,9 @@ if (aiConfig) {
                     baseURL,
                 });
             } else if (key === 'openrouter') {
-                providerInstances[key] = createOpenAICompatible({
-                    name: key,
-                    baseURL,
+                providerInstances[key] = createOpenRouter({
                     apiKey,
+                    headers: extraHeaders,
                 });
             } else {
                 // For any other provider, use openaiCompatible
@@ -66,6 +72,7 @@ if (aiConfig) {
             name: 'openrouter',
             baseURL: process.env.OPENROUTER_BASE_URL ?? 'https://openrouter.ai/api/v1',
             apiKey: process.env.OPENROUTER_API_KEY,
+            headers: extraHeaders,
         });
     }
     if (process.env.CUSTOM_API_KEY && process.env.CUSTOM_BASE_URL) {

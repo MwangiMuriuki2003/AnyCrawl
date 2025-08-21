@@ -1,5 +1,5 @@
 import { Response, NextFunction } from "express";
-import { getDB, schemas } from "../db/index.js";
+import { getDB, schemas } from "@anycrawl/db";
 import { log } from "@anycrawl/libs/log";
 import { captureResponseBody, CapturedResponse } from "../utils/responseCapture.js";
 import { RequestWithAuth } from "../types/Types.js";
@@ -39,8 +39,8 @@ export const logMiddleware = async (req: RequestWithAuth, res: Response, next: N
             method: req.method,
             statusCode: res.statusCode,
             processingTimeMs: res.getHeader("x-response-time") ? String(res.getHeader("x-response-time")).replace("ms", "") : null,
-            // if success request, creditsUsed is 1 at least, otherwise 0
-            creditsUsed: (res.statusCode >= 200 && res.statusCode < 400) ? req.creditsUsed || 1 : 0,
+            // if success request, creditsUsed defaults to 1 unless explicitly set
+            creditsUsed: (res.statusCode >= 200 && res.statusCode < 400) ? (req.creditsUsed ?? 1) : 0,
             ipAddress: req.ip || null,
             userAgent: req.headers["user-agent"] || null,
             requestPayload: requestPayload,

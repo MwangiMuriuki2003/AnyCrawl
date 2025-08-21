@@ -25,8 +25,8 @@
         "clean:dist": "find . -name 'dist' -type d -prune -exec rm -rf '{}' +",
         "install:playwright": "cd packages/scrape && pnpm playwright install --with-deps",
         "install:puppeteer": "cd packages/scrape && pnpm puppeteer browsers install chrome",
-        "db:generate": "turbo run db:generate --filter=api",
-        "db:migrate": "turbo run db:migrate --filter=api",
+        "db:generate": "turbo run db:generate --filter=@anycrawl/db",
+        "db:migrate": "turbo run db:migrate --filter=@anycrawl/db",
         "check:deps": "dotenv-run -- knip",
         "check:phantom-deps": "dotenv-run -- knip --include=unlisted"
     },

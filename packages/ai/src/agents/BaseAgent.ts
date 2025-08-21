@@ -1,10 +1,10 @@
-import { encoding_for_model, TiktokenModel } from "tiktoken";
+import { encoding_for_model, TiktokenModel, get_encoding } from "tiktoken";
 import { modelsConfig } from "../utils/models-config.js";
 import { ModelConfig } from "../utils/types.js";
 import { CostTracking } from "./CostTracking.js";
 import { log } from "@anycrawl/libs";
 import { LanguageModel } from "ai";
-import { getLLMByModel } from "../ProviderRegistry.js";
+import { getLLM, getLLMByModel } from "../ProviderRegistry.js";
 
 /**
  * Base class for all AI agents that interact with language models
@@ -19,7 +19,8 @@ export abstract class BaseAgent {
 
     constructor(modelId: string, costLimit: number | null = null) {
         this.modelId = modelId;
-        this.llm = getLLMByModel(modelId);
+        // If modelId is in provider/model format, use it directly; otherwise resolve by model key
+        this.llm = modelId.includes('/') ? getLLM(modelId) : getLLMByModel(modelId);
         this.costTracking = new CostTracking(costLimit);
 
         // Load model configuration
@@ -27,11 +28,25 @@ export abstract class BaseAgent {
 
         // Initialize tiktoken encoding
         try {
-            const tiktokenModel = this.getTiktokenModel(modelId);
-            this.encoding = encoding_for_model(tiktokenModel);
-        } catch (error) {
-            // Fallback to cl100k_base encoding for unknown models
-            log.warning(`Failed to load tiktoken for model ${modelId}, using fallback estimation`);
+            // 1) Try full provider/modelId directly first
+            this.encoding = encoding_for_model(modelId as unknown as TiktokenModel);
+        } catch (e1) {
+            try {
+                // 2) Then try with normalized model name (strip provider prefix)
+                const normalized = this.getTiktokenModel(modelId);
+                this.encoding = encoding_for_model(normalized);
+            } catch (e2) {
+                // 3) Finally, fallback to a general-purpose encoding
+                try {
+                    this.encoding = get_encoding('cl100k_base');
+                    const normalized = this.getTiktokenModel(modelId);
+                    log.info(`tiktoken model not found for: ${modelId} (normalized: ${normalized}). Falling back to cl100k_base.`);
+                } catch (err) {
+                    // If base encoding is also unavailable, rely on rough estimation in countTokens
+                    const normalized = this.getTiktokenModel(modelId);
+                    log.warning(`Failed to initialize tiktoken for: ${modelId} (normalized: ${normalized}). Will use rough estimation.`);
+                }
+            }
         }
     }
 
@@ -84,7 +99,8 @@ export abstract class BaseAgent {
      * Extract tiktoken model name from model ID
      */
     protected getTiktokenModel(modelId: string): TiktokenModel {
-        // Extract model name from provider/model format
+        // Normalize modelId by removing any provider prefixes like "openrouter/", etc.
+        // Keep only the last segment after '/'
         const modelName = modelId.includes('/') ? modelId.split('/').pop() : modelId;
 
         if (!modelName) {

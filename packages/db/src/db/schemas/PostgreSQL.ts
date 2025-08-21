@@ -62,3 +62,65 @@ export const requestLog = p.pgTable("request_log", {
     // create at
     createdAt: p.timestamp("created_at").notNull(),
 });
+
+export const jobs = p.pgTable("jobs", {
+    // Primary key with auto-incrementing ID
+    uuid: p
+        .uuid()
+        .primaryKey()
+        .$defaultFn(() => randomUUID()),
+    // job id
+    jobId: p.text("job_id").notNull(),
+    // job type
+    jobType: p.text("job_type").notNull(),
+    // job queue name
+    jobQueueName: p.text("job_queue_name").notNull(),
+    // job expire at
+    jobExpireAt: p.timestamp("job_expire_at").notNull().$defaultFn(() => new Date(Date.now() + 3 * 60 * 60 * 1000)),
+    // url
+    url: p.text("url").notNull(),
+    // payload from job
+    payload: p.jsonb("payload"),
+    // api key
+    apiKey: p.uuid("api_key_id").references(() => apiKey.uuid),
+    // total urls/pages found
+    total: p.integer("total").notNull().default(0),
+    // completed urls/pages
+    completed: p.integer("completed").notNull().default(0),
+    // failed urls/pages
+    failed: p.integer("failed").notNull().default(0),
+    // Number of credits consumed
+    creditsUsed: p.integer("credits_used").notNull().default(0),
+    // Origin, playground or api
+    origin: p.text("origin").notNull(),
+    // status of job
+    status: p.text("status").notNull(),
+    // job success or not
+    isSuccess: p.boolean("is_success").notNull().default(false),
+    // job error message
+    errorMessage: p.text("error_message"),
+    // job created at
+    createdAt: p.timestamp("created_at").notNull(),
+    // job updated at
+    updatedAt: p.timestamp("updated_at").notNull(),
+});
+
+export const jobResults = p.pgTable("job_results", {
+    // Primary key with auto-incrementing ID
+    uuid: p
+        .uuid()
+        .primaryKey()
+        .$defaultFn(() => randomUUID()),
+    // job uuid
+    jobUuid: p.uuid("job_uuid").references(() => jobs.uuid),
+    // url
+    url: p.text("url").notNull(),
+    // data
+    data: p.jsonb("data"),
+    // status
+    status: p.text("status").notNull(),
+    // created at
+    createdAt: p.timestamp("created_at").notNull(),
+    // updated at
+    updatedAt: p.timestamp("updated_at").notNull(),
+});

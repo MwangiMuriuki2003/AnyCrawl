@@ -18,31 +18,54 @@ function removeDefaultProperty(obj: any): any {
 }
 
 function normalizeSchema(schema: any): any {
-    if (schema && schema.type === "array") {
-        // Wrap array schema in an object with 'items' property
-        return {
+    // First remove defaults recursively
+    const removeDefaults = removeDefaultProperty(schema);
+
+    // Build a normalized base schema
+    let base: any;
+    if (removeDefaults && removeDefaults.type === "array") {
+        base = {
             type: "object",
             properties: {
-                items: schema,
+                items: removeDefaults,
             },
             required: ["items"],
             additionalProperties: false,
         };
-    } else if (schema && typeof schema === "object" && !schema.type) {
-        // If schema is a plain object (no type), treat as properties
-        return {
+    } else if (removeDefaults && typeof removeDefaults === "object" && !removeDefaults.type) {
+        base = {
             type: "object",
             properties: Object.fromEntries(
-                Object.entries(schema).map(([key, value]) => {
+                Object.entries(removeDefaults).map(([key, value]) => {
                     return [key, normalizeSchema(value)];
                 })
             ),
-            required: Object.keys(schema),
+            required: Object.keys(removeDefaults),
             additionalProperties: false,
         };
+    } else {
+        base = removeDefaults;
     }
-    // Remove default property recursively
-    return removeDefaultProperty(schema);
+
+    // Enforce additionalProperties: false on all object nodes, recurse arrays/items
+    const enforceAdditionalFalse = (node: any): any => {
+        if (!node || typeof node !== 'object') return node;
+        if (Array.isArray(node)) return node.map(enforceAdditionalFalse);
+        const out: any = { ...node };
+        if (out.type === 'object') {
+            if (out.additionalProperties === undefined) out.additionalProperties = false;
+            if (out.properties && typeof out.properties === 'object') {
+                for (const [k, v] of Object.entries(out.properties)) {
+                    (out.properties as any)[k] = enforceAdditionalFalse(v);
+                }
+            }
+        } else if (out.type === 'array' && out.items) {
+            out.items = enforceAdditionalFalse(out.items);
+        }
+        return out;
+    };
+
+    return enforceAdditionalFalse(base);
 }
 
 // Interfaces
@@ -65,6 +88,7 @@ interface ExtractResult {
     };
     chunks: number;
     cost?: number;
+    durationMs?: number;
 }
 
 interface BatchExtractResult {
@@ -86,6 +110,47 @@ class LLMExtract extends BaseAgent {
         super(modelId, costLimit);
         this.systemPrompt = prompt;
         this.textChunker = new TextChunker(this.countTokens.bind(this));
+    }
+
+    /**
+     * Extract actual token usage from provider response if available
+     */
+    private extractUsageTokens(result: any, fallbackPromptText?: string, fallbackOutputObject?: any): {
+        inputTokens: number;
+        outputTokens: number;
+        totalTokens: number;
+        providerCost?: number;
+        providerCurrency?: string;
+        rawUsage?: any;
+    } {
+        const usage = result?.usage || result?.response?.usage || null;
+        const promptTokens = usage?.promptTokens ?? usage?.inputTokens ?? usage?.prompt_tokens ?? null;
+        const completionTokens = usage?.completionTokens ?? usage?.outputTokens ?? usage?.completion_tokens ?? null;
+        const totalTokens = usage?.totalTokens ?? usage?.total_tokens ?? null;
+        const currency = usage?.currency || usage?.unit || usage?.pricing?.currency || undefined;
+        const costCandidate = usage?.totalCost ?? usage?.total_cost ?? usage?.cost ?? usage?.price ?? usage?.total_price ?? usage?.pricing?.total ?? undefined;
+
+        if (typeof promptTokens === 'number' && typeof completionTokens === 'number') {
+            return {
+                inputTokens: promptTokens,
+                outputTokens: completionTokens,
+                totalTokens: typeof totalTokens === 'number' ? totalTokens : promptTokens + completionTokens,
+                providerCost: typeof costCandidate === 'number' ? costCandidate : undefined,
+                providerCurrency: currency,
+                rawUsage: usage ?? undefined,
+            };
+        }
+
+        // Fallback to local estimation
+        const promptText = String(fallbackPromptText ?? '');
+        const outputText = JSON.stringify(fallbackOutputObject ?? {});
+        const estimatedInput = this.countTokens(promptText);
+        const estimatedOutput = this.countTokens(outputText);
+        return {
+            inputTokens: estimatedInput,
+            outputTokens: estimatedOutput,
+            totalTokens: estimatedInput + estimatedOutput,
+        };
     }
 
     /**
@@ -122,13 +187,13 @@ class LLMExtract extends BaseAgent {
                 const items = propSchema.items as JSONSchema7;
                 const itemType = items && typeof items === 'object' && 'type' in items ? items.type : 'any';
                 typeDescription = `(array of ${itemType}s)`;
-                // 递归展开 array 的 item
+                // Recursively expand array items
                 if (items && items.type === 'object') {
                     return `${indent}- ${field} ${typeDescription}: ${description}\n${this.createFieldPrompt(items, indent + '    ')}`;
                 }
             } else if (type === 'object') {
                 typeDescription = '(object)';
-                // 递归展开 object
+                // Recursively expand array items
                 return `${indent}- ${field} ${typeDescription}: ${description}\n${this.createFieldPrompt(propSchema, indent + '    ')}`;
             } else {
                 typeDescription = `(${type})`;
@@ -210,6 +275,7 @@ class LLMExtract extends BaseAgent {
      * Unified extraction logic for both single and chunked extraction
      */
     async perform(text: string | string[], schema: JSONSchema7, options: ExtractOptions = {}): Promise<ExtractResult> {
+        const overallStart = Date.now();
         // --- normalize schema ---
         const normalizedSchema = normalizeSchema(schema);
         // Get default parameters based on model config
@@ -241,24 +307,35 @@ class LLMExtract extends BaseAgent {
                 });
 
                 const systemPrompt = options.systemPrompt || this.systemPrompt || "";
-                const promptTokens = this.countTokens(fullPrompt + systemPrompt);
-                const outputTokens = this.countTokens(JSON.stringify(result.object || {}));
+                const usageTokens = this.extractUsageTokens(result, fullPrompt + systemPrompt, result.object);
+                if (typeof usageTokens.providerCost === 'number') {
+                    this.costTracking.addCall({
+                        type: "extract",
+                        metadata: { direct: true },
+                        cost: usageTokens.providerCost,
+                        model: this.modelId,
+                        tokens: { input: usageTokens.inputTokens, output: usageTokens.outputTokens }
+                    });
+                } else {
+                    this.trackCall("extract", { direct: true }, usageTokens.inputTokens, usageTokens.outputTokens);
+                }
 
-                this.trackCall("extract", { direct: true }, promptTokens, outputTokens);
-
+                const totalDuration = Date.now() - overallStart;
                 const finalResult = {
                     data: result.object || result,
                     tokens: {
-                        input: promptTokens,
-                        output: outputTokens,
-                        total: promptTokens + outputTokens
+                        input: usageTokens.inputTokens,
+                        output: usageTokens.outputTokens,
+                        total: usageTokens.totalTokens
                     },
                     chunks: 1,
-                    cost: this.costTracking.getTotalCost()
+                    cost: this.costTracking.getTotalCost(),
+                    usage: usageTokens.rawUsage ?? undefined,
+                    durationMs: totalDuration
                 };
 
-                // Output cost tracking information
-                log.debug(`💰 Cost: $${finalResult.cost.toFixed(6)} | Tokens: ${finalResult.tokens.total}`);
+                // Output cost tracking information (overall extract duration only)
+                log.info(`[extract] tokens(input=${finalResult.tokens.input}, output=${finalResult.tokens.output}, total=${finalResult.tokens.total}) cost=$${finalResult.cost.toFixed(6)} duration=${totalDuration}ms model=${this.modelId} chunks=${finalResult.chunks}`);
                 return finalResult;
 
             } catch (error) {
@@ -301,6 +378,21 @@ class LLMExtract extends BaseAgent {
                     schema: jsonSchema(normalizedSchema),
                 });
                 allResults.push(result.object);
+
+                // Track tokens and cost for this chunk using provider usage if available
+                const systemPrompt = options.systemPrompt || this.systemPrompt || "";
+                const usageTokens = this.extractUsageTokens(result, fullPrompt + systemPrompt, result.object);
+                if (typeof usageTokens.providerCost === 'number') {
+                    this.costTracking.addCall({
+                        type: "extract",
+                        metadata: { direct: false, chunkIndex: index + 1, totalChunks: allChunks.length },
+                        cost: usageTokens.providerCost,
+                        model: this.modelId,
+                        tokens: { input: usageTokens.inputTokens, output: usageTokens.outputTokens }
+                    });
+                } else {
+                    this.trackCall("extract", { direct: false, chunkIndex: index + 1, totalChunks: allChunks.length }, usageTokens.inputTokens, usageTokens.outputTokens);
+                }
             } catch (error) {
                 log.error(`❌ Error processing chunk ${chunkInfo.startIndex}-${chunkInfo.endIndex}: ${error instanceof Error ? error.message : String(error)}`);
                 allResults.push(null);
@@ -309,13 +401,15 @@ class LLMExtract extends BaseAgent {
         this.trackCall("merge", { chunksCount: allChunks.length }, 0, 0);
         const mergedResult = this.mergeResults(allResults, normalizedSchema);
         const totalTokens = this.costTracking.getTotalTokens();
+        const totalDuration = Date.now() - overallStart;
         const finalResult = {
             data: mergedResult,
             tokens: totalTokens,
             chunks: allChunks.length,
-            cost: this.costTracking.getTotalCost()
+            cost: this.costTracking.getTotalCost(),
+            durationMs: totalDuration
         };
-        log.debug(`💰 Total Cost: $${finalResult.cost?.toFixed(6)} | Total Tokens: ${finalResult.tokens.total} | Chunks: ${finalResult.chunks}`);
+        log.info(`[extract] tokens(input=${finalResult.tokens.input}, output=${finalResult.tokens.output}, total=${finalResult.tokens.total}) cost=$${finalResult.cost?.toFixed(6)} duration=${totalDuration}ms model=${this.modelId} chunks=${finalResult.chunks}`);
         return finalResult;
     }
 

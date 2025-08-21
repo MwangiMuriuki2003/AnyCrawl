@@ -20,6 +20,11 @@
             "import": "./dist/index.js",
             "default": "./dist/index.js"
         },
+        "./constants": {
+            "types": "./dist/constants.d.ts",
+            "import": "./dist/constants.js",
+            "default": "./dist/constants.js"
+        },
         "./engines/*": {
             "types": "./dist/engines/*.d.ts",
             "import": "./dist/engines/*.js",
@@ -51,6 +56,7 @@
     "dependencies": {
         "@anycrawl/libs": "workspace:*",
         "@anycrawl/ai": "workspace:*",
+        "@anycrawl/db": "workspace:*",
         "@apify/utilities": "^2.11.2",
         "@crawlee/types": "^3.13.0",
         "@dotenv-run/cli": "^1.3.6",

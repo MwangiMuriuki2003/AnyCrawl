@@ -1,12 +1,19 @@
 import { z } from "zod";
-import { AVAILABLE_ENGINES } from "@anycrawl/scrape/managers/EngineQueue";
+import { ALLOWED_ENGINES, SCRAPE_FORMATS } from "@anycrawl/scrape/constants";
+
+export { ALLOWED_ENGINES, SCRAPE_FORMATS };
 
 // Define the recursive JSON Schema type
 export const jsonSchemaType: z.ZodType<any> = z.lazy(() =>
     z.object({
         type: z.enum(["object", "array", "string", "number", "boolean", "null"]),
+        // For object schemas
         properties: z.record(jsonSchemaType).optional(),
         required: z.array(z.string()).optional(),
+        // For array schemas
+        items: z.union([jsonSchemaType, z.array(jsonSchemaType)]).optional(),
+        // Helpful hints for LLM extraction
+        description: z.string().optional(),
     })
 );
 
@@ -35,7 +42,7 @@ export const baseSchema = z.object({
     /**
      * The engine to be used
      */
-    engine: z.enum(AVAILABLE_ENGINES).default("cheerio"),
+    engine: z.enum(ALLOWED_ENGINES).default("cheerio"),
 
     /**
      * The proxy to be used
@@ -45,7 +52,7 @@ export const baseSchema = z.object({
     /**
      * The formats to be used
      */
-    formats: z.array(z.enum(["markdown", "html", "text", "screenshot", "screenshot@fullPage", "rawHtml", "json"])).default(["markdown"]),
+    formats: z.array(z.enum(SCRAPE_FORMATS)).default(["markdown"]),
 
     /**
      * The timeout to be used
@@ -71,11 +78,6 @@ export const baseSchema = z.object({
      * The exclude tags to be used
      */
     exclude_tags: z.array(z.string()).optional(),
-
-    /**
-     * The JSON schema to be used for extracting structured data
-     */
-    json_schema: jsonSchemaType.optional(),
 
     /**
      * The JSON options to be used for extracting structured data

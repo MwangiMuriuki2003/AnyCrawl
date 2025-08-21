@@ -2,7 +2,7 @@ import { Job, Queue, Worker } from "bullmq";
 import { log } from "crawlee";
 import { randomUUID } from "node:crypto";
 import { Utils } from "../Utils.js";
-import { EngineType } from "./EngineQueue.js";
+import type { EngineType } from "./EngineQueue.js";
 
 export interface RequestTaskOptions {
     headless?: boolean;
@@ -15,14 +15,26 @@ export interface RequestTaskOptions {
     excludeTags?: string[];
 }
 
+export interface CrawlOptions {
+    excludePaths?: string[];
+    includePaths?: string[];
+    maxDepth: number;
+    limit: number;
+    strategy: string;
+    scrape_options?: RequestTaskOptions;
+}
+
 export interface RequestTask {
     url: string;
     engine: EngineType;
     queueName?: QueueName;
-    options?: RequestTaskOptions;
+    options?: RequestTaskOptions | CrawlOptions;
+    // New fields for crawl support
+    type?: 'scrape' | 'crawl';
+    crawlJobId?: string;
 }
 
-export type QueueName = "scrape" | "crawler" | string;
+export type QueueName = "scrape" | "crawl" | string;
 export class QueueManager {
     private static instance: QueueManager;
     private queues: Map<string, Queue> = new Map();
@@ -99,6 +111,16 @@ export class QueueManager {
             },
         });
         return jobId;
+    }
+
+    /**
+     * Cancel a job in a specific queue
+     * @param queueName Name of the queue
+     * @param jobId ID of the job
+     */
+    public async cancelJob(queueName: QueueName, jobId: string): Promise<void> {
+        const queue = this.getQueue(queueName);
+        await queue.remove(jobId);
     }
 
     /**

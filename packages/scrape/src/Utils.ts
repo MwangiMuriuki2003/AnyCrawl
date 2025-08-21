@@ -1,9 +1,8 @@
 import { Configuration, KeyValueStore, log, RequestQueueV2 } from "crawlee";
 import { join } from "node:path";
 import IORedis from "ioredis";
-import { EngineQueueManager } from "./managers/EngineQueue.js";
 import { Job } from "bullmq";
-import { EngineOptions } from "./engines/Base.js";
+import type { EngineOptions } from "./engines/Base.js";
 
 /**
  * Utility class for storing global instances
@@ -94,13 +93,14 @@ export class Utils {
                 options: {},
             },
         });
+        const { EngineQueueManager } = await import("./managers/EngineQueue.js");
         const engine = await EngineQueueManager.getInstance().createEngine(
             job.data.engine,
             queue,
             options
         );
         await engine.init();
-        await engine.getEngine().run();
+        await engine.run();
         await queue.drop();
     }
 

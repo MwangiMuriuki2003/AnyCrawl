@@ -27,6 +27,11 @@
             "types": "./dist/engines/types.d.ts",
             "import": "./dist/engines/types.js",
             "default": "./dist/engines/types.js"
+        },
+        "./constants": {
+            "types": "./dist/constants.d.ts",
+            "import": "./dist/constants.js",
+            "default": "./dist/constants.js"
         }
     },
     "dependencies": {

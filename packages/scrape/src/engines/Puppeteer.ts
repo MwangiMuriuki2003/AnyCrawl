@@ -1,4 +1,5 @@
-import { BaseEngine, EngineOptions, BaseEngineType, CrawlingContext } from "./Base.js";
+import { BaseEngine, BaseEngineType } from "./Base.js";
+import type { EngineOptions, CrawlingContext } from "./Base.js";
 import {
     Dictionary,
     PuppeteerCrawler,

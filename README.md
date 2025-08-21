@@ -22,63 +22,42 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white" alt="Node.js"/>
   <img src="https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript"/>
-  <img src="https://img.shields.io/badge/Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white" alt="Redis"/>
+  <img src="https://img.shields.io/badge/Redis-DC3
+  2D?style=for-the-badge&logo=redis&logoColor=white" alt="Redis"/>
 </p>
 
 </div>
 
 ## 📖 Overview
 
-AnyCrawl is a high-performance web crawling and scraping application that excels in multiple domains:
+AnyCrawl is a high‑performance crawling and scraping toolkit:
 
-- **SERP Crawling**: Support for multiple search engines with batch processing capabilities
-- **Web Crawling**: Efficient single-page content extraction
-- **Site Crawling**: Comprehensive full-site crawling with intelligent traversal
-- **High Performance**: Multi-threading and multi-process architecture
-- **Batch Processing**: Efficient handling of batch crawling tasks
+- **SERP crawling**: multiple search engines, batch‑friendly
+- **Web scraping**: single‑page content extraction
+- **Site crawling**: full‑site traversal and collection
+- **High performance**: multi‑threading / multi‑process
+- **Batch tasks**: reliable and efficient
+- **AI extraction**: LLM‑powered structured data (JSON) extraction from pages
 
-Built with modern architectures and optimized for LLMs (Large Language Models), AnyCrawl provides:
+LLM‑friendly. Easy to integrate and use.
 
 ## 🚀 Quick Start
 
-📖 **For detailed documentation, visit [Docs](https://docs.anycrawl.dev)**
-
-### Docker Deployment
-
-```bash
-docker compose up --build
-```
-
-### Environment Variables
-
-| Variable                       | Description                                  | Default                        | Example                                                     |
-| ------------------------------ | -------------------------------------------- | ------------------------------ | ----------------------------------------------------------- |
-| `NODE_ENV`                     | Runtime environment                          | `production`                   | `production`, `development`                                 |
-| `ANYCRAWL_API_PORT`            | API service port                             | `8080`                         | `8080`                                                      |
-| `ANYCRAWL_HEADLESS`            | Use headless mode for browser engines        | `true`                         | `true`, `false`                                             |
-| `ANYCRAWL_PROXY_URL`           | Proxy server URL (supports HTTP and SOCKS)   | _(none)_                       | `http://proxy:8080`                                         |
-| `ANYCRAWL_IGNORE_SSL_ERROR`    | Ignore SSL certificate errors                | `true`                         | `true`, `false`                                             |
-| `ANYCRAWL_KEEP_ALIVE`          | Keep connections alive between requests      | `true`                         | `true`, `false`                                             |
-| `ANYCRAWL_AVAILABLE_ENGINES`   | Available scraping engines (comma-separated) | `cheerio,playwright,puppeteer` | `playwright,puppeteer`                                      |
-| `ANYCRAWL_API_DB_TYPE`         | Database type                                | `sqlite`                       | `sqlite`, `postgresql`                                      |
-| `ANYCRAWL_API_DB_CONNECTION`   | Database connection string/path              | `/usr/src/app/db/database.db`  | `/path/to/db.sqlite`, `postgresql://user:pass@localhost/db` |
-| `ANYCRAWL_REDIS_URL`           | Redis connection URL                         | `redis://redis:6379`           | `redis://localhost:6379`                                    |
-| `ANYCRAWL_API_AUTH_ENABLED`    | Enable API authentication                    | `false`                        | `true`, `false`                                             |
-| `ANYCRAWL_API_CREDITS_ENABLED` | Enable credit system                         | `false`                        | `true`, `false`                                             |
+📖 See full docs: [Docs](https://docs.anycrawl.dev)
 
 ## 📚 Usage Examples
 
-💡 **You can use [Playground](https://anycrawl.dev/playground) to test APIs and generate code examples for your preferred programming language.**
+💡 Use the [Playground](https://anycrawl.dev/playground) to test APIs and generate code in your preferred language.
 
-> **Note**: If you are self-hosting AnyCrawl, make sure to replace `https://api.anycrawl.dev` with your own server URL.
+> If self‑hosting, replace `https://api.anycrawl.dev` with your own server URL.
 
-### Web Scraping
+### Web Scraping (Scrape)
 
-#### Basic Usage
+#### Example
 
 ```typescript
 
-curl -X POST http://localhost:8080/v1/scrape \
+curl -X POST https://api.anycrawl.dev/v1/scrape \
   -H 'Content-Type: application/json' \
   -H 'Authorization: Bearer YOUR_ANYCRAWL_API_KEY' \
   -d '{
@@ -88,6 +67,7 @@ curl -X POST http://localhost:8080/v1/scrape \
 
 ```
 
+
 #### Parameters
 
 | Parameter | Type              | Description                                                                                                                                                                       | Default  |
@@ -96,12 +76,72 @@ curl -X POST http://localhost:8080/v1/scrape \
 | engine    | string            | Scraping engine to use. Options: `cheerio` (static HTML parsing, fastest), `playwright` (JavaScript rendering with modern engine), `puppeteer` (JavaScript rendering with Chrome) | cheerio  |
 | proxy     | string            | Proxy URL for the request. Supports HTTP and SOCKS proxies. Format: `http://[username]:[password]@proxy:port`                                                                     | _(none)_ |
 
-### Search Engine Results (SERP)
+More parameters: see [Request Parameters](https://docs.anycrawl.dev/en/general/scrape#request-parameters).
 
-#### Basic Usage
+
+#### LLM Extraction
+
+```bash
+curl -X POST "https://api.anycrawl.dev/v1/scrape" \
+  -H "Authorization: Bearer YOUR_ANYCRAWL_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://example.com",
+    "json_options": {
+      "schema": {
+        "type": "object",
+        "properties": {
+          "company_mission": { "type": "string" },
+          "is_open_source": { "type": "boolean" },
+          "employee_count": { "type": "number" }
+        },
+        "required": ["company_mission"]
+      }
+    }
+  }'
+```
+
+### Site Crawling (Crawl)
+
+#### Example
 
 ```typescript
-curl -X POST http://localhost:8080/v1/search \
+
+curl -X POST https://api.anycrawl.dev/v1/crawl \
+  -H 'Content-Type: application/json' \
+  -H 'Authorization: Bearer YOUR_ANYCRAWL_API_KEY' \
+  -d '{
+  "url": "https://example.com",
+  "engine": "playwright",
+  "max_depth": 2,
+  "limit": 10,
+  "strategy": "same-domain"
+}'
+
+```
+
+#### Parameters
+
+| Parameter     | Type                | Description                                                                                 | Default       |
+| ------------- | ------------------- | ------------------------------------------------------------------------------------------- | ------------- |
+| url           | string (required)   | Starting URL to crawl                                                                       | -             |
+| engine        | string              | Crawling engine. Options: `cheerio`, `playwright`, `puppeteer`                              | cheerio       |
+| max_depth     | number              | Max depth from the start URL                                                                | 10            |
+| limit         | number              | Max number of pages to crawl                                                                | 100           |
+| strategy      | enum                | Scope: `all`, `same-domain`, `same-hostname`, `same-origin`                                 | same-domain   |
+| include_paths | array<string>       | Only crawl paths matching these patterns                                                    | _(none)_      |
+| exclude_paths | array<string>       | Skip paths matching these patterns                                                          | _(none)_      |
+| scrape_options| object              | Per-page scrape options (formats, timeout, json extraction, etc.), same as Scrape options   | _(none)_ |
+
+More parameters and endpoints: see [Request Parameters](https://docs.anycrawl.dev/en/general/scrape#request-parameters).
+
+
+### Search Engine Results (SERP)
+
+#### Example
+
+```typescript
+curl -X POST https://api.anycrawl.dev/v1/search \
   -H 'Content-Type: application/json' \
   -H 'Authorization: Bearer YOUR_ANYCRAWL_API_KEY' \
   -d '{
@@ -121,31 +161,26 @@ curl -X POST http://localhost:8080/v1/search \
 | `pages`   | integer           | Number of search result pages to retrieve                  | 1       |
 | `lang`    | string            | Language code for search results (e.g., 'en', 'zh', 'all') | en-US   |
 
-#### Supported Search Engines
+#### Supported search engines
 
 - Google
 
 ## ❓ FAQ
 
-### Common Questions
-
-1. **Q: Can I use proxies?**
-   A: Yes, AnyCrawl supports both HTTP and SOCKS proxies. Configure them through the `ANYCRAWL_PROXY_URL` environment variable.
-
-2. **Q: How to handle JavaScript-rendered content?**
-   A: AnyCrawl supports Puppeteer and Playwright for JavaScript rendering needs.
+1. **Can I use proxies?** Yes. AnyCrawl ships with a high‑quality default proxy. You can also configure your own: set the `proxy` request parameter (per request) or `ANYCRAWL_PROXY_URL` (self‑hosting).
+2. **How to handle JavaScript‑rendered pages?** Use the `Playwright` or `Puppeteer` engines.
 
 ## 🤝 Contributing
 
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+We welcome contributions! See the [Contributing Guide](CONTRIBUTING.md).
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+MIT License — see [LICENSE](LICENSE).
 
 ## 🎯 Mission
 
-Our mission is to build foundational products for the AI ecosystem, providing essential tools that empower both individuals and enterprises to develop AI applications. We are committed to accelerating the advancement of AI technology by delivering robust, scalable infrastructure that serves as the cornerstone for innovation in artificial intelligence.
+We build simple, reliable, and scalable tools for the AI ecosystem.
 
 ---
 

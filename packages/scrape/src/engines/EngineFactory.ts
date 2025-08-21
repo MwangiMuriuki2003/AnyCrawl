@@ -1,11 +1,9 @@
 import { RequestQueueV2, LaunchContext, Dictionary, log } from "crawlee";
-import { CheerioEngine } from "./Cheerio.js";
-import { PlaywrightEngine } from "./Playwright.js";
-import { PuppeteerEngine } from "./Puppeteer.js";
-import { EngineOptions, CrawlingContext } from "./Base.js";
+import type { EngineOptions } from "./Base.js";
 import proxyConfiguration from "../managers/Proxy.js";
 
-export type Engine = PlaywrightEngine | PuppeteerEngine | CheerioEngine;
+// Use type-only reference to avoid runtime import of Base and engines
+export type Engine = import("./Base.js").BaseEngine;
 
 // Base factory interface
 export interface IEngineFactory {
@@ -61,7 +59,9 @@ const defaultHttpOptions: Record<string, any> = {
 
 // Concrete factory implementations
 export class CheerioEngineFactory implements IEngineFactory {
-    async createEngine(queue: RequestQueueV2, options?: EngineOptions): Promise<CheerioEngine> {
+    async createEngine(queue: RequestQueueV2, options?: EngineOptions): Promise<Engine> {
+        const mod = await import("./Cheerio.js");
+        const { CheerioEngine } = mod as any;
         return new CheerioEngine({
             ...defaultOptions,
             requestQueue: queue,
@@ -73,7 +73,9 @@ export class CheerioEngineFactory implements IEngineFactory {
 }
 
 export class PlaywrightEngineFactory implements IEngineFactory {
-    async createEngine(queue: RequestQueueV2, options?: EngineOptions): Promise<PlaywrightEngine> {
+    async createEngine(queue: RequestQueueV2, options?: EngineOptions): Promise<Engine> {
+        const mod = await import("./Playwright.js");
+        const { PlaywrightEngine } = mod as any;
         return new PlaywrightEngine({
             ...defaultOptions,
             requestQueue: queue,
@@ -84,7 +86,9 @@ export class PlaywrightEngineFactory implements IEngineFactory {
 }
 
 export class PuppeteerEngineFactory implements IEngineFactory {
-    async createEngine(queue: RequestQueueV2, options?: EngineOptions): Promise<PuppeteerEngine> {
+    async createEngine(queue: RequestQueueV2, options?: EngineOptions): Promise<Engine> {
+        const mod = await import("./Puppeteer.js");
+        const { PuppeteerEngine } = mod as any;
         return new PuppeteerEngine({
             ...defaultOptions,
             requestQueue: queue,

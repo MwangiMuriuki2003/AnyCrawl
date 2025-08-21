@@ -4,8 +4,6 @@ import { Utils, CrawlingContext, Engine, EngineFactoryRegistry } from "@anycrawl
 import { randomUUID } from "node:crypto";
 import { log } from "@anycrawl/libs";
 
-export const AVAILABLE_SEARCH_ENGINES = ["google"] as const;
-
 export class SearchService {
     private engines: Map<string, SearchEngine>;
     private requestsToResponses: Map<string, (results: SearchResult[]) => void>;
@@ -40,6 +38,10 @@ export class SearchService {
         return engine;
     }
 
+    /**
+     * Initialize the crawler
+     * @returns {Promise<void>}
+     */
     public async initializeCrawler() {
         if (!this.crawler) {
             log.info("Initializing crawler...");
